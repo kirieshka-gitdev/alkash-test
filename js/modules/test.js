@@ -4,12 +4,6 @@ import { shuffleArray, formatDuration } from './utils.js';
 import { getProfile, setProfile, getHistory, setHistory, saveAccounts, isSandboxMode } from './auth.js';
 import { updateProfileUI } from './profile.js';
 
-// test.js — вопросы и логика теста
-
-import { shuffleArray, formatDuration } from './utils.js';
-import { getProfile, setProfile, getHistory, setHistory, saveAccounts, isSandboxMode } from './auth.js';
-import { updateProfileUI } from './profile.js';
-
 export const BASE_QUESTIONS = [
   { 
     text: 'Как часто в вашей жизни присутствует алкоголь?', 
