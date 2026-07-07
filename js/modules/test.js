@@ -27,6 +27,9 @@ export const EXTRA_QUESTIONS = [
   { text: 'Вы пьёте за рулём?', options: [{label:'Никогда',score:0},{label:'Пару раз',score:40},{label:'Регулярно',score:85},{label:'Не вижу проблемы',score:95}] }
 ];
 
+// Объединенная база данных для сжатой пересылки
+export const ALL_QUESTIONS_DB = [...BASE_QUESTIONS, ...EXTRA_QUESTIONS];
+
 let testState = {
   questions: [],
   currentIndex: 0,
@@ -116,17 +119,23 @@ function updateProgress() {
   testUI.progressFill.style.width = `${total > 0 ? (cur / total) * 100 : 0}%`;
 }
 
+// Экспорт компактного лога индексов
 export function getTestSharePayload() {
   const profile = getProfile();
+  
+  const compactLog = testState.questions.map((q, idx) => {
+    const dbIndex = ALL_QUESTIONS_DB.findIndex(dbQ => dbQ.text === q.text);
+    return {
+      q: dbIndex,
+      a: testState.selectedAnswers[idx] !== undefined ? testState.selectedAnswers[idx] : null
+    };
+  });
+  
   return {
     type: 'test',
     name: profile ? profile.name : 'Аноним',
     sandbox: isSandboxMode(),
-    questions: testState.questions.map((q, idx) => ({
-      text: q.text,
-      options: q.options.map(o => o.label),
-      selected: testState.selectedAnswers[idx] !== undefined ? testState.selectedAnswers[idx] : null
-    })),
+    qData: compactLog,
     percent: Math.round(Math.min(100, Math.max(0, (testState.totalScore / testState.questions.reduce((sum, q) => {
       const maxOpt = q.options.reduce((m, o) => Math.max(m, o.score), 0);
       return sum + maxOpt;

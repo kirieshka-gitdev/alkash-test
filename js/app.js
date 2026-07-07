@@ -2,7 +2,7 @@
 
 import { initAuth, loadAccount, renderAccountList, loadAccounts, saveAccounts, getProfile, getHistory, setProfile, setHistory, getAllAccounts, getCurrentIndex, setCustomAlert as setAuthAlert } from './modules/auth.js';
 import { initProfile, updateProfileUI, setCustomAlert as setProfileAlert } from './modules/profile.js';
-import { initTest, startNewGame, getTestSharePayload, setCustomAlert as setTestAlert } from './modules/test.js';
+import { initTest, startNewGame, getTestSharePayload, setCustomAlert as setTestAlert, ALL_QUESTIONS_DB } from './modules/test.js';
 import { initGame, initGameSession, restoreGame, startGame as startGameSession, pauseMemoryGame, isGameRunning, getGameSharePayload, setCustomAlert as setGameAlert } from './modules/game.js';
 import { initCaptcha, startCaptcha, cancelCaptcha, setCustomAlert as setCaptchaAlert } from './modules/captcha.js';
 import { initHistory, renderHistory, renderChart } from './modules/history.js';
@@ -188,7 +188,7 @@ if (dom.notifCloseBtn) {
   });
 }
 
-// Инициализация кастомных алертов во всех модулях
+// Связывание модулей с кастомными уведомлениями
 setAuthAlert(customAlert);
 setProfileAlert(customAlert);
 setTestAlert(customAlert);
@@ -402,10 +402,14 @@ function generateShareLink(payload) {
 
 if (dom.shareTestBtn) {
   dom.shareTestBtn.addEventListener('click', async () => {
+    // Кастомный алерт подтверждения
+    const confirm = await customAlert('Поделиться результатом', '⚠️ Обратите внимание: Ваше имя (ник) будет видно всем, у кого есть эта ссылка. Вы уверены, что хотите продолжить?');
+    if (!confirm) return;
+    
     const payload = getTestSharePayload();
     const link = generateShareLink(payload);
     if (link) {
-      await customAlert('Поделиться результатом', 
+      await customAlert('Ссылка сгенерирована', 
         'Ваша персональная гостевая ссылка с ответами сгенерирована! Скопируйте и отправьте её друзьям:', 
         null, link);
     }
@@ -414,10 +418,14 @@ if (dom.shareTestBtn) {
 
 if (dom.shareGameBtn) {
   dom.shareGameBtn.addEventListener('click', async () => {
+    // Кастомный алерт подтверждения
+    const confirm = await customAlert('Поделиться результатом', '⚠️ Обратите внимание: Ваше имя (ник) будет видно всем, у кого есть эта ссылка. Вы уверены, что хотите продолжить?');
+    if (!confirm) return;
+    
     const payload = getGameSharePayload();
     const link = generateShareLink(payload);
     if (link) {
-      await customAlert('Поделиться результатом игры', 
+      await customAlert('Ссылка сгенерирована', 
         'Ссылка на результаты прохождения мини-игры сгенерирована! Скопируйте её:', 
         null, link);
     }
@@ -452,6 +460,7 @@ function checkAndRenderShareLink() {
     if (data.type === 'test') {
       html += `
         <div style="text-align: center; margin-bottom: 20px;">
+          <p style="color:#a78bfa; font-size:0.8rem; font-weight:700; text-transform:uppercase; margin-bottom: 6px; letter-spacing: 0.05em;"><i class="fas fa-question-circle"></i> Модуль: АлкоТест (Вопросы)</p>
           <div class="percentage-badge" style="font-size: 2rem; padding: 10px 30px; margin-bottom: 8px;">${data.percent}%</div>
           <h3 style="color:#f0eeff; font-size: 1.3rem;">${data.name}</h3>
           <p style="color:rgba(200,200,255,0.4); font-size:0.85rem;">Режим: ${data.sandbox ? '🍊 Песочница' : '🔒 Реальный тест'}</p>
@@ -459,20 +468,25 @@ function checkAndRenderShareLink() {
         <div style="text-align: left; display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 6px;">
       `;
       
-      data.questions.forEach((q, qIdx) => {
+      // Декодируем компактный лог ответов
+      data.qData.forEach((item, qIdx) => {
+        const originalQuestion = ALL_QUESTIONS_DB[item.q];
+        if (!originalQuestion) return;
+        
         html += `
           <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 12px; border-radius: 16px;">
-            <h4 style="color:#d6d4ff; font-size: 0.9rem; margin-bottom: 8px;">${qIdx + 1}. ${q.text}</h4>
+            <h4 style="color:#d6d4ff; font-size: 0.9rem; margin-bottom: 8px;">${qIdx + 1}. ${originalQuestion.text}</h4>
             <div style="display:flex; flex-direction:column; gap:4px;">
         `;
-        q.options.forEach((opt, oIdx) => {
-          const isSelected = q.selected === oIdx;
+        
+        originalQuestion.options.forEach((opt, oIdx) => {
+          const isSelected = item.a === oIdx;
           const color = isSelected ? '#fb923c' : 'rgba(200,200,255,0.3)';
           const bg = isSelected ? 'rgba(251,146,60,0.1)' : 'transparent';
           const border = isSelected ? '1px solid #fb923c' : '1px solid rgba(255,255,255,0.02)';
           html += `
             <div style="padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; color:${color}; background:${bg}; border:${border}; display:flex; align-items:center; gap:6px;">
-              <i class="${isSelected ? 'fas fa-check-circle' : 'far fa-circle'}"></i> ${opt}
+              <i class="${isSelected ? 'fas fa-check-circle' : 'far fa-circle'}"></i> ${opt.label}
             </div>
           `;
         });
@@ -485,6 +499,7 @@ function checkAndRenderShareLink() {
       
       html += `
         <div style="text-align: center;">
+          <p style="color:#a78bfa; font-size:0.8rem; font-weight:700; text-transform:uppercase; margin-bottom: 12px; letter-spacing: 0.05em;"><i class="fas fa-gamepad"></i> Модуль: Игра на память (Карточки)</p>
           <h2 style="color:${resultColor}; font-size: 1.8rem; font-weight: 900; margin-bottom: 12px;">${resultText}</h2>
           <h3 style="color:#f0eeff; font-size: 1.3rem; margin-bottom: 4px;">Игрок: ${data.name}</h3>
           <p style="color:rgba(200,200,255,0.4); font-size:0.85rem; margin-bottom: 20px;">Режим: ${data.sandbox ? '🍊 Песочница' : '🔒 Реальный режим'}</p>
