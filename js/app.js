@@ -170,9 +170,11 @@ dom.alertInput.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') dom.alertCancelBtn.click();
 });
 
-dom.notifCloseBtn.addEventListener('click', () => {
-  dom.systemNotif.classList.remove('show');
-});
+if (dom.notifCloseBtn && dom.systemNotif) {
+  dom.notifCloseBtn.addEventListener('click', () => {
+    dom.systemNotif.classList.remove('show');
+  });
+}
 
 // ----- ИНИЦИАЛИЗАЦИЯ МОДУЛЕЙ -----
 
@@ -317,8 +319,6 @@ function handleAccountClick(idx) {
     renderChart();
   }
 }
-
-// ----- ОБРАБОТЧИКИ КНОПОК -----
 
 // ----- ОБРАБОТЧИКИ КНОПОК -----
 
