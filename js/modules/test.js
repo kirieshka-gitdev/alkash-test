@@ -34,7 +34,8 @@ let testState = {
   answeredCount: 0,
   isFinished: false,
   extraTriggered: false,
-  isTransitioning: false
+  isTransitioning: false,
+  selectedAnswers: []
 };
 
 let testUI = {};
@@ -50,6 +51,7 @@ export function startNewGame() {
   testState.answeredCount = 0;
   testState.isFinished = false;
   testState.extraTriggered = false;
+  testState.selectedAnswers = [];
   
   testUI.extraIndicator.innerHTML = '<i class="fas fa-circle" style="color:#6ee7b7;font-size:0.25rem;"></i> доп.';
   testUI.extraIndicator.style.opacity = '0.5';
@@ -73,14 +75,14 @@ function renderQuestion() {
     btn.className = 'option-btn';
     const icons = ['fa-solid fa-wine-bottle','fa-solid fa-beer-mug-empty','fa-solid fa-cocktail','fa-solid fa-glass-cheers','fa-solid fa-wine-glass'];
     btn.innerHTML = `<i class="${icons[idx % icons.length]}"></i> ${opt.label}`;
-    btn.addEventListener('click', () => handleAnswer(opt.score));
+    btn.addEventListener('click', () => handleAnswer(opt.score, idx));
     testUI.optionsContainer.appendChild(btn);
   });
   
   updateProgress();
 }
 
-function handleAnswer(score) {
+function handleAnswer(score, optionIdx) {
   if (testState.isFinished || testState.isTransitioning) return;
   testState.isTransitioning = true;
   testUI.loadingOverlay.classList.remove('hidden');
@@ -89,6 +91,7 @@ function handleAnswer(score) {
   setTimeout(() => {
     testState.totalScore += score;
     testState.answeredCount++;
+    testState.selectedAnswers.push(optionIdx);
     
     if (!testState.extraTriggered && testState.answeredCount >= 2 && (testState.totalScore / testState.answeredCount) >= 35) {
       testState.extraTriggered = true;
@@ -111,6 +114,24 @@ function updateProgress() {
   const cur = Math.min(testState.currentIndex, total);
   testUI.progressText.textContent = `${cur} / ${total}`;
   testUI.progressFill.style.width = `${total > 0 ? (cur / total) * 100 : 0}%`;
+}
+
+export function getTestSharePayload() {
+  const profile = getProfile();
+  return {
+    type: 'test',
+    name: profile ? profile.name : 'Аноним',
+    sandbox: isSandboxMode(),
+    questions: testState.questions.map((q, idx) => ({
+      text: q.text,
+      options: q.options.map(o => o.label),
+      selected: testState.selectedAnswers[idx] !== undefined ? testState.selectedAnswers[idx] : null
+    })),
+    percent: Math.round(Math.min(100, Math.max(0, (testState.totalScore / testState.questions.reduce((sum, q) => {
+      const maxOpt = q.options.reduce((m, o) => Math.max(m, o.score), 0);
+      return sum + maxOpt;
+    }, 0)) * 100)))
+  };
 }
 
 function finishTest() {

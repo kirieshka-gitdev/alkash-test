@@ -14,7 +14,9 @@ let gameState = {
   seconds: 0,
   started: false,
   finished: false,
-  timer: null
+  timer: null,
+  clicks: 0,
+  errors: 0
 };
 
 let gameUI = {};
@@ -51,6 +53,8 @@ export function pauseMemoryGame() {
     flipped: gameState.flipped,
     matched: gameState.matched,
     seconds: gameState.seconds,
+    clicks: gameState.clicks,
+    errors: gameState.errors,
     started: true,
     finished: false,
     paused: true
@@ -74,6 +78,8 @@ export function initGameSession() {
         gameState.flipped = state.flipped;
         gameState.matched = state.matched;
         gameState.seconds = state.seconds;
+        gameState.clicks = state.clicks || 0;
+        gameState.errors = state.errors || 0;
         gameState.started = false;
         gameState.finished = false;
         
@@ -81,6 +87,7 @@ export function initGameSession() {
         gameUI.gameTimerDisplay.textContent = `⏱ ${formatDuration(gameState.seconds)}`;
         gameUI.gameStartBtn.disabled = false;
         gameUI.gameStartBtn.innerHTML = '<i class="fas fa-play"></i> Продолжить игру';
+        if (gameUI.shareGameBtn) gameUI.shareGameBtn.classList.add('hidden');
         renderGame();
         return;
       }
@@ -95,6 +102,8 @@ export function initGameSession() {
   gameState.matched = [];
   gameState.locked = false;
   gameState.seconds = 0;
+  gameState.clicks = 0;
+  gameState.errors = 0;
   gameState.started = false;
   gameState.finished = false;
   
@@ -104,6 +113,7 @@ export function initGameSession() {
   gameUI.gameTimerDisplay.textContent = '⏱ 0:00';
   gameUI.gameStartBtn.disabled = false;
   gameUI.gameStartBtn.innerHTML = '<i class="fas fa-play"></i> Начать игру';
+  if (gameUI.shareGameBtn) gameUI.shareGameBtn.classList.add('hidden');
   renderGame();
 }
 
@@ -122,7 +132,21 @@ function renderGame() {
 }
 
 export function startGame() {
-  if (gameState.finished) return;
+  // Фикс бага кнопки "Новая игра": если игра завершена, сбрасываем состояние и запускаем заново
+  if (gameState.finished) {
+    localStorage.removeItem('memoryGameState');
+    const pairs = shuffleArray([...GAME_EMOJIS, ...GAME_EMOJIS]);
+    gameState.cards = pairs.map((em, idx) => ({ id: idx, emoji: em, matched: false, flipped: false }));
+    gameState.flipped = [];
+    gameState.matched = [];
+    gameState.locked = false;
+    gameState.seconds = 0;
+    gameState.clicks = 0;
+    gameState.errors = 0;
+    gameState.started = true;
+    gameState.finished = false;
+    if (gameUI.shareGameBtn) gameUI.shareGameBtn.classList.add('hidden');
+  }
   
   const saved = localStorage.getItem('memoryGameState');
   if (saved) {
@@ -133,6 +157,8 @@ export function startGame() {
         gameState.flipped = state.flipped;
         gameState.matched = state.matched;
         gameState.seconds = state.seconds;
+        gameState.clicks = state.clicks || 0;
+        gameState.errors = state.errors || 0;
         gameState.started = true;
         gameState.finished = false;
         localStorage.removeItem('memoryGameState');
@@ -145,6 +171,8 @@ export function startGame() {
   if (!gameState.started) {
     gameState.started = true;
     gameState.seconds = 0;
+    gameState.clicks = 0;
+    gameState.errors = 0;
   }
   
   gameUI.gameStartBtn.disabled = true;
@@ -162,6 +190,8 @@ export function startGame() {
       flipped: gameState.flipped,
       matched: gameState.matched,
       seconds: gameState.seconds,
+      clicks: gameState.clicks,
+      errors: gameState.errors,
       started: true,
       finished: false,
       paused: true
@@ -177,6 +207,7 @@ export function startGame() {
       gameUI.gameStatus.textContent = '⏰ Время вышло! Вы не успели. Статус: АЛКАШ!';
       gameUI.gameStartBtn.disabled = false;
       gameUI.gameStartBtn.innerHTML = '<i class="fas fa-redo"></i> Новая игра';
+      if (gameUI.shareGameBtn) gameUI.shareGameBtn.classList.remove('hidden');
       
       if (isSandboxMode()) {
         customAlert('Песочница', '⚠️ Внимание: Время вышло в режиме "Песочница". Ваш реальный статус и история не изменились.');
@@ -207,10 +238,12 @@ function handleGameClick(idx) {
   
   const card = gameState.cards[idx];
   if (card.matched || card.flipped) return;
+  
   if (!gameState.started) {
     startGame();
   }
   
+  gameState.clicks++;
   card.flipped = true;
   gameState.flipped.push(idx);
   renderGame();
@@ -237,9 +270,10 @@ function handleGameClick(idx) {
         gameUI.gameStatus.textContent = `🎉 Поздравляем! Вы прошли за ${time} сек. Вы трезвы!`;
         gameUI.gameStartBtn.disabled = false;
         gameUI.gameStartBtn.innerHTML = '<i class="fas fa-redo"></i> Новая игра';
+        if (gameUI.shareGameBtn) gameUI.shareGameBtn.classList.remove('hidden');
         
         if (isSandboxMode()) {
-          customAlert('Песочница', `🎉 Результат: ${time}с в режиме "Песочница". На ваш реальный статус и историю это никак не повлияло.`);
+          customAlert('Песочница', `🎉 Результат: ${time}с в режиме "Песочница". На ваш статус это никак не повлияло.`);
         } else {
           const profile = getProfile();
           if (profile) {
@@ -253,6 +287,7 @@ function handleGameClick(idx) {
         }
       }
     } else {
+      gameState.errors++;
       setTimeout(() => {
         gameState.cards[idx1].flipped = false;
         gameState.cards[idx2].flipped = false;
@@ -264,12 +299,25 @@ function handleGameClick(idx) {
   }
 }
 
+export function getGameSharePayload() {
+  const profile = getProfile();
+  return {
+    type: 'game',
+    name: profile ? profile.name : 'Аноним',
+    sandbox: isSandboxMode(),
+    seconds: gameState.seconds,
+    clicks: gameState.clicks,
+    errors: gameState.errors,
+    victory: gameState.matched.length === gameState.cards.length
+  };
+}
+
 export function restoreGame() {
   initGameSession();
   if (localStorage.getItem('memoryGameState')) {
     const saved = JSON.parse(localStorage.getItem('memoryGameState'));
     if (saved.paused && saved.started) {
-      // Готово к продолжению
+      // Готово к возобновлению
     }
   }
 }

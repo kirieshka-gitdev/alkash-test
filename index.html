@@ -40,7 +40,23 @@
 
   <!-- ЦЕНТР -->
   <div class="main-content">
-    <div class="glass-card">
+    <!-- ЭКРАН ПРОСМОТРА ССЫЛКИ (SHARE VIEW) -->
+    <div class="glass-card hidden" id="shareViewScreen">
+      <div class="register-header" style="text-align: left; margin-bottom: 14px;">
+        <h2><i class="fas fa-eye"></i> Результат АлкоТеста</h2>
+        <p id="shareViewSub">Просмотр гостевой карточки результатов</p>
+      </div>
+      
+      <div id="shareViewContent">
+        <!-- Сюда динамически вставим контент результатов -->
+      </div>
+      
+      <div class="flex-center" style="margin-top: 16px;">
+        <button class="reset-btn" id="shareViewBackBtn" style="border-color:#6ee7b7; color:#6ee7b7; font-weight: 700;"><i class="fas fa-arrow-left"></i> Перейти в приложение</button>
+      </div>
+    </div>
+
+    <div class="glass-card" id="appMainCard">
       <!-- РЕГИСТРАЦИЯ -->
       <div class="register-screen show" id="registerScreen">
         <div class="register-header">
@@ -102,7 +118,10 @@
             <div class="result-label" id="resultLabel">Вы трезвы!</div>
             <div class="result-sub" id="resultSub">абсолютный ноль</div>
             <div class="percentage-badge" id="percentageDisplay">0%</div>
-            <div class="flex-center"><button class="reset-btn" id="resetBtn"><i class="fas fa-undo-alt"></i> Пройти заново</button></div>
+            <div class="flex-center" style="gap: 8px;">
+              <button class="reset-btn" id="resetBtn"><i class="fas fa-undo-alt"></i> Пройти заново</button>
+              <button class="reset-btn" id="shareTestBtn" style="border-color:#fb923c; color:#fb923c;"><i class="fas fa-share-alt"></i> Поделиться</button>
+            </div>
           </div>
         </div>
 
@@ -112,8 +131,9 @@
             <div class="game-status" id="gameStatus">Найди пары! Трезвый ум — быстрый ум.</div>
             <div class="game-timer" id="gameTimerDisplay">⏱ 0:00</div>
             <div class="game-grid" id="gameGrid"></div>
-            <div>
+            <div class="flex-center" style="gap: 8px;">
               <button class="game-btn" id="gameStartBtn"><i class="fas fa-play"></i> Начать игру</button>
+              <button class="game-btn hidden" id="shareGameBtn" style="background:rgba(251,146,60,0.15); border-color:#fb923c; color:white;"><i class="fas fa-share-alt"></i> Поделиться</button>
             </div>
             <div class="text-muted mt-8">* Игра длится ровно 45 секунд. Sandbox-результаты не влияют на статистику.</div>
           </div>

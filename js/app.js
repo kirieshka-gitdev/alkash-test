@@ -2,8 +2,8 @@
 
 import { initAuth, loadAccount, renderAccountList, loadAccounts, saveAccounts, getProfile, getHistory, setProfile, setHistory, getAllAccounts, getCurrentIndex, setCustomAlert as setAuthAlert } from './modules/auth.js';
 import { initProfile, updateProfileUI, setCustomAlert as setProfileAlert } from './modules/profile.js';
-import { initTest, startNewGame, setCustomAlert as setTestAlert } from './modules/test.js';
-import { initGame, initGameSession, restoreGame, startGame as startGameSession, pauseMemoryGame, isGameRunning, setCustomAlert as setGameAlert } from './modules/game.js';
+import { initTest, startNewGame, getTestSharePayload, setCustomAlert as setTestAlert } from './modules/test.js';
+import { initGame, initGameSession, restoreGame, startGame as startGameSession, pauseMemoryGame, isGameRunning, getGameSharePayload, setCustomAlert as setGameAlert } from './modules/game.js';
 import { initCaptcha, startCaptcha, cancelCaptcha, setCustomAlert as setCaptchaAlert } from './modules/captcha.js';
 import { initHistory, renderHistory, renderChart } from './modules/history.js';
 import { formatDuration } from './modules/utils.js';
@@ -47,12 +47,14 @@ const dom = {
   percentageDisplay: document.getElementById('percentageDisplay'),
   resetBtn: document.getElementById('resetBtn'),
   loadingOverlay: document.getElementById('loadingOverlay'),
+  shareTestBtn: document.getElementById('shareTestBtn'),
   
   // Игра
   gameGrid: document.getElementById('gameGrid'),
   gameStatus: document.getElementById('gameStatus'),
   gameTimerDisplay: document.getElementById('gameTimerDisplay'),
   gameStartBtn: document.getElementById('gameStartBtn'),
+  shareGameBtn: document.getElementById('shareGameBtn'),
   
   // Капча
   captchaOverlay: document.getElementById('captchaOverlay'),
@@ -88,11 +90,17 @@ const dom = {
   standardMode: document.getElementById('standardMode'),
   modularMode: document.getElementById('modularMode'),
   
-  // Кнопки
+  // Кнопки левой панели
   captchaBtn: document.getElementById('panelCaptchaBtn'),
   deleteBtn: document.getElementById('panelDeleteBtn'),
   tokenBtn: document.getElementById('panelTokenBtn'),
-  accountsBtn: document.getElementById('panelAccountsBtn')
+  accountsBtn: document.getElementById('panelAccountsBtn'),
+
+  // Экран просмотра ссылки
+  shareViewScreen: document.getElementById('shareViewScreen'),
+  shareViewContent: document.getElementById('shareViewContent'),
+  shareViewBackBtn: document.getElementById('shareViewBackBtn'),
+  appMainCard: document.getElementById('appMainCard')
 };
 
 // ----- КАСТОМНЫЙ АЛЕРТ -----
@@ -107,7 +115,7 @@ function customAlert(title, message, inputPlaceholder = null, copyText = null) {
     
     if (copyText) {
       dom.alertCopyBtn.classList.remove('hidden');
-      dom.alertCancelBtn.classList.add('hidden'); // Убираем отмену для копирования токена
+      dom.alertCancelBtn.classList.add('hidden');
     } else {
       dom.alertCopyBtn.classList.add('hidden');
     }
@@ -116,12 +124,12 @@ function customAlert(title, message, inputPlaceholder = null, copyText = null) {
       dom.alertInputContainer.classList.remove('hidden');
       dom.alertInput.value = '';
       dom.alertInput.placeholder = inputPlaceholder;
-      dom.alertCancelBtn.classList.remove('hidden'); // Показываем Отмену только если нужен ввод текста
+      dom.alertCancelBtn.classList.remove('hidden');
       setTimeout(() => dom.alertInput.focus(), 100);
     } else {
       dom.alertInputContainer.classList.add('hidden');
       if (!copyText) {
-        dom.alertCancelBtn.classList.add('hidden'); // Убираем отмену в информационных окнах
+        dom.alertCancelBtn.classList.add('hidden');
       }
     }
     
@@ -180,14 +188,13 @@ if (dom.notifCloseBtn) {
   });
 }
 
-// ----- ИНИЦИАЛИЗАЦИЯ СВЯЗЕЙ С КАСТОМНЫМ АЛЕРТОМ -----
+// Инициализация кастомных алертов во всех модулях
 setAuthAlert(customAlert);
 setProfileAlert(customAlert);
 setTestAlert(customAlert);
 setGameAlert(customAlert);
 setCaptchaAlert(customAlert);
-
-window.customAlert = customAlert; // Глобальный алиас
+window.customAlert = customAlert;
 
 // ----- ИНИЦИАЛИЗАЦИЯ МОДУЛЕЙ -----
 
@@ -231,14 +238,16 @@ initTest({
   resultSub: dom.resultSub,
   percentageDisplay: dom.percentageDisplay,
   resetBtn: dom.resetBtn,
-  loadingOverlay: dom.loadingOverlay
+  loadingOverlay: dom.loadingOverlay,
+  shareTestBtn: dom.shareTestBtn
 });
 
 initGame({
   gameGrid: dom.gameGrid,
   gameStatus: dom.gameStatus,
   gameTimerDisplay: dom.gameTimerDisplay,
-  gameStartBtn: dom.gameStartBtn
+  gameStartBtn: dom.gameStartBtn,
+  shareGameBtn: dom.shareGameBtn
 });
 
 initCaptcha({
@@ -258,7 +267,7 @@ initHistory({
   chartEmptyText: dom.chartEmptyText
 });
 
-// ----- КОЛБЭКИ ДЛЯ МЕЖМОДУЛЬНОГО ВЗАИМОДЕЙСТВИЯ -----
+// ----- КОЛБЭКИ ВЗАИМОДЕЙСТВИЯ -----
 
 window.onAccountChange = function() {
   pauseMemoryGame();
@@ -378,6 +387,134 @@ if (dom.captchaBtn) {
   });
 }
 
+// ----- ГЕНЕРАЦИЯ ССЫЛКИ ДЛЯ ПОДЕЛИТЬСЯ -----
+
+function generateShareLink(payload) {
+  try {
+    const jsonStr = JSON.stringify(payload);
+    const base64 = btoa(encodeURIComponent(jsonStr));
+    return `${window.location.origin}${window.location.pathname}?share=${base64}`;
+  } catch(e) {
+    console.error(e);
+    return null;
+  }
+}
+
+if (dom.shareTestBtn) {
+  dom.shareTestBtn.addEventListener('click', async () => {
+    const payload = getTestSharePayload();
+    const link = generateShareLink(payload);
+    if (link) {
+      await customAlert('Поделиться результатом', 
+        'Ваша персональная гостевая ссылка с ответами сгенерирована! Скопируйте и отправьте её друзьям:', 
+        null, link);
+    }
+  });
+}
+
+if (dom.shareGameBtn) {
+  dom.shareGameBtn.addEventListener('click', async () => {
+    const payload = getGameSharePayload();
+    const link = generateShareLink(payload);
+    if (link) {
+      await customAlert('Поделиться результатом игры', 
+        'Ссылка на результаты прохождения мини-игры сгенерирована! Скопируйте её:', 
+        null, link);
+    }
+  });
+}
+
+// Возврат из гостевого режима
+if (dom.shareViewBackBtn) {
+  dom.shareViewBackBtn.addEventListener('click', () => {
+    window.location.href = window.location.pathname; // Сброс get-параметров
+  });
+}
+
+// ----- РЕНДЕРИНГ ГОСТЕВОГО ЭКРАНА -----
+
+function checkAndRenderShareLink() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const shareParam = urlParams.get('share');
+  if (!shareParam) return false;
+  
+  try {
+    const decodedJson = decodeURIComponent(atob(shareParam));
+    const data = JSON.parse(decodedJson);
+    
+    // Скрываем основные блоки интерфейса
+    dom.leftPanel.style.display = 'none';
+    dom.appMainCard.classList.add('hidden');
+    dom.shareViewScreen.classList.remove('hidden');
+    
+    let html = '';
+    
+    if (data.type === 'test') {
+      html += `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div class="percentage-badge" style="font-size: 2rem; padding: 10px 30px; margin-bottom: 8px;">${data.percent}%</div>
+          <h3 style="color:#f0eeff; font-size: 1.3rem;">${data.name}</h3>
+          <p style="color:rgba(200,200,255,0.4); font-size:0.85rem;">Режим: ${data.sandbox ? '🍊 Песочница' : '🔒 Реальный тест'}</p>
+        </div>
+        <div style="text-align: left; display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 6px;">
+      `;
+      
+      data.questions.forEach((q, qIdx) => {
+        html += `
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 12px; border-radius: 16px;">
+            <h4 style="color:#d6d4ff; font-size: 0.9rem; margin-bottom: 8px;">${qIdx + 1}. ${q.text}</h4>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+        `;
+        q.options.forEach((opt, oIdx) => {
+          const isSelected = q.selected === oIdx;
+          const color = isSelected ? '#fb923c' : 'rgba(200,200,255,0.3)';
+          const bg = isSelected ? 'rgba(251,146,60,0.1)' : 'transparent';
+          const border = isSelected ? '1px solid #fb923c' : '1px solid rgba(255,255,255,0.02)';
+          html += `
+            <div style="padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; color:${color}; background:${bg}; border:${border}; display:flex; align-items:center; gap:6px;">
+              <i class="${isSelected ? 'fas fa-check-circle' : 'far fa-circle'}"></i> ${opt}
+            </div>
+          `;
+        });
+        html += `</div></div>`;
+      });
+      html += `</div>`;
+    } else if (data.type === 'game') {
+      const resultColor = data.victory ? '#6ee7b7' : '#f87171';
+      const resultText = data.victory ? '🏆 ПОБЕДА!' : '⏰ ПОРАЖЕНИЕ';
+      
+      html += `
+        <div style="text-align: center;">
+          <h2 style="color:${resultColor}; font-size: 1.8rem; font-weight: 900; margin-bottom: 12px;">${resultText}</h2>
+          <h3 style="color:#f0eeff; font-size: 1.3rem; margin-bottom: 4px;">Игрок: ${data.name}</h3>
+          <p style="color:rgba(200,200,255,0.4); font-size:0.85rem; margin-bottom: 20px;">Режим: ${data.sandbox ? '🍊 Песочница' : '🔒 Реальный режим'}</p>
+          
+          <div style="display: flex; flex-direction: column; gap: 8px; max-width: 300px; margin: 0 auto; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 16px; border-radius: 24px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+              <span style="color:rgba(200,200,255,0.45);">⏱ Время прохождения:</span>
+              <span style="color:#f0eeff; font-weight:700;">${formatDuration(data.seconds)} / 0:45</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+              <span style="color:rgba(200,200,255,0.45);">🔄 Всего кликов:</span>
+              <span style="color:#f0eeff; font-weight:700;">${data.clicks || 0}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+              <span style="color:rgba(200,200,255,0.45);">❌ Ошибок:</span>
+              <span style="color:#f87171; font-weight:700;">${data.errors || 0}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    dom.shareViewContent.innerHTML = html;
+    return true;
+  } catch(e) {
+    console.error('Ошибка расшифровки ссылки:', e);
+    return false;
+  }
+}
+
 // ----- ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ -----
 
 function setMode(mode) {
@@ -411,6 +548,10 @@ dom.modeBtns.forEach(btn => {
 // ----- ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ -----
 
 function initApp() {
+  if (checkAndRenderShareLink()) {
+    return; // Если это просмотр гостевой ссылки, обычное приложение не запускается
+  }
+  
   const profile = getProfile();
   
   if (profile) {
