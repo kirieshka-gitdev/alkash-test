@@ -1,10 +1,10 @@
 // app.js — главный файл, инициализация всех модулей
 
-import { initAuth, loadAccount, renderAccountList, loadAccounts, saveAccounts, getProfile, getHistory, setProfile, setHistory, getAllAccounts, getCurrentIndex } from './modules/auth.js';
-import { initProfile, updateProfileUI } from './modules/profile.js';
-import { initTest, startNewGame } from './modules/test.js';
-import { initGame, initGameSession, restoreGame, startGame as startGameSession, pauseMemoryGame } from './modules/game.js';
-import { initCaptcha, startCaptcha, cancelCaptcha } from './modules/captcha.js';
+import { initAuth, loadAccount, renderAccountList, loadAccounts, saveAccounts, getProfile, getHistory, setProfile, setHistory, getAllAccounts, getCurrentIndex, setCustomAlert as setAuthAlert } from './modules/auth.js';
+import { initProfile, updateProfileUI, setCustomAlert as setProfileAlert } from './modules/profile.js';
+import { initTest, startNewGame, setCustomAlert as setTestAlert } from './modules/test.js';
+import { initGame, initGameSession, restoreGame, startGame as startGameSession, pauseMemoryGame, isGameRunning, setCustomAlert as setGameAlert } from './modules/game.js';
+import { initCaptcha, startCaptcha, cancelCaptcha, setCustomAlert as setCaptchaAlert } from './modules/captcha.js';
 import { initHistory, renderHistory, renderChart } from './modules/history.js';
 import { formatDuration } from './modules/utils.js';
 
@@ -180,15 +180,16 @@ if (dom.notifCloseBtn) {
   });
 }
 
+// ----- ИНИЦИАЛИЗАЦИЯ СВЯЗЕЙ С КАСТОМНЫМ АЛЕРТОМ -----
+setAuthAlert(customAlert);
+setProfileAlert(customAlert);
+setTestAlert(customAlert);
+setGameAlert(customAlert);
+setCaptchaAlert(customAlert);
+
+window.customAlert = customAlert; // Глобальный алиас
+
 // ----- ИНИЦИАЛИЗАЦИЯ МОДУЛЕЙ -----
-
-// Передаём customAlert во все модули
-const alertModules = [initAuth, initProfile, initCaptcha, initTest];
-alertModules.forEach(fn => {
-  if (fn.setCustomAlert) fn.setCustomAlert(customAlert);
-});
-
-window.customAlert = customAlert; // Делаем глобально доступным для вызовов завершения игр
 
 initAuth({
   accountList: dom.accountList,
@@ -306,6 +307,10 @@ window.onDeleteAccount = function() {
 };
 
 window.onShowAccounts = function() {
+  if (isGameRunning()) {
+    customAlert('Аккаунты', '⚠️ Вы не можете перейти к списку аккаунтов во время активной игры. Завершите игру или дождитесь окончания времени!');
+    return;
+  }
   pauseMemoryGame();
   dom.registerScreen.classList.add('show');
   dom.mainApp.classList.remove('show');
@@ -314,6 +319,10 @@ window.onShowAccounts = function() {
 };
 
 function handleAccountClick(idx) {
+  if (isGameRunning()) {
+    customAlert('Выбор собутыльника', '⚠️ Вы не можете переключить аккаунт во время активной игры. Завершите игру или дождитесь окончания времени!');
+    return;
+  }
   pauseMemoryGame();
   if (idx !== getCurrentIndex()) {
     loadAccount(idx);
@@ -327,7 +336,6 @@ function handleAccountClick(idx) {
     renderHistory();
     renderChart();
   } else {
-    // Если аккаунт один или нажат текущий — просто возвращаем на главную
     dom.registerScreen.classList.remove('show');
     dom.mainApp.classList.add('show');
     dom.leftPanel.style.display = 'block';
@@ -362,6 +370,10 @@ if (dom.captchaBtn) {
       customAlert('Доступ запрещён', 'Капча доступна только в состоянии "Алкаш"');
       return;
     }
+    if (isGameRunning()) {
+      customAlert('Капча', '⚠️ Завершите активную мини-игру перед прохождением капчи!');
+      return;
+    }
     startCaptcha();
   });
 }
@@ -369,8 +381,13 @@ if (dom.captchaBtn) {
 // ----- ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ -----
 
 function setMode(mode) {
+  if (isGameRunning()) {
+    customAlert('Режим заблокирован', '⚠️ Вы не можете переключить режим во время активной игры. Завершите игру или дождитесь окончания времени!');
+    return;
+  }
+  
   if (mode === 'standard') {
-    pauseMemoryGame(); // Ставим на паузу игру, если ушли на тест
+    pauseMemoryGame();
     dom.standardMode.classList.remove('hidden');
     dom.modularMode.classList.add('hidden');
     dom.modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === 'standard'));

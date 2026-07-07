@@ -2,8 +2,8 @@
 
 import { getStatusLabel, getStatusClass, formatTime, formatDuration } from './utils.js';
 import { getProfile, setProfile, saveAccounts, getCurrentIndex, isSandboxMode, setSandboxMode, isFunnyMode } from './auth.js';
+import { isGameRunning } from './game.js';
 
-// Экспортируем обратно, чтобы не ломать старые импорты в сторонних файлах
 export { isFunnyMode };
 
 let profileUI = {
@@ -70,7 +70,6 @@ export function updateProfileUI() {
     }
   }
   
-  // Обновление стилей и текста песочницы
   const isSand = isSandboxMode();
   const appContainer = document.querySelector('.app-container');
   
@@ -92,6 +91,12 @@ export function updateProfileUI() {
 function toggleSandbox() {
   const profile = getProfile();
   if (!profile) return;
+  
+  if (isGameRunning()) {
+    customAlert('Песочница', '⚠️ Вы не можете переключить режим во время активной игры. Завершите игру или дождитесь окончания времени!');
+    return;
+  }
+  
   if (profile.status === 'drunk') {
     customAlert('Песочница', 'В статусе "Алкаш" режим песочницы принудительно активен и не может быть отключен.');
     return;
@@ -118,6 +123,12 @@ async function handleEditName() {
 async function handleDeleteAccount() {
   const profile = getProfile();
   if (!profile) return;
+  
+  if (isGameRunning()) {
+    await customAlert('Удаление профиля', '⚠️ Вы не можете удалить аккаунт во время активной игры. Завершите игру или дождитесь окончания времени!');
+    return;
+  }
+  
   if (profile.status === 'drunk') {
     await customAlert('Доступ запрещён', '❌ Нельзя удалить аккаунт в состоянии "Алкаш". Пройдите капчу!');
     return;
@@ -133,6 +144,12 @@ async function handleDeleteAccount() {
 async function handleToken() {
   const profile = getProfile();
   if (!profile) return;
+  
+  if (isGameRunning()) {
+    await customAlert('Ваш токен', '⚠️ Вы не можете получить токен во время активной игры. Завершите игру или дождитесь окончания времени!');
+    return;
+  }
+  
   const { generateToken } = await import('./auth.js');
   const token = generateToken(profile);
   await customAlert('Ваш токен', 
@@ -142,6 +159,10 @@ async function handleToken() {
 }
 
 function handleShowAccounts() {
+  if (isGameRunning()) {
+    customAlert('Аккаунты', '⚠️ Вы не можете перейти к списку аккаунтов во время активной игры. Завершите игру или дождитесь окончания времени!');
+    return;
+  }
   if (window.onShowAccounts) window.onShowAccounts();
 }
 

@@ -1,10 +1,9 @@
 // test.js — вопросы и логика теста
 
 import { shuffleArray, formatDuration } from './utils.js';
-import { getProfile, setProfile, getHistory, setHistory, saveAccounts } from './auth.js';
-import { updateProfileUI, isFunnyMode } from './profile.js';
+import { getProfile, setProfile, getHistory, setHistory, saveAccounts, isSandboxMode } from './auth.js';
+import { updateProfileUI } from './profile.js';
 
-// Вопросы
 export const BASE_QUESTIONS = [
   { text: 'Как часто вы употребляете алкоголь?', options: [{label:'Ни разу',score:0},{label:'По праздникам',score:12},{label:'Пару раз в месяц',score:35},{label:'Каждые выходные',score:60},{label:'Почти каждый день',score:85}] },
   { text: 'Что чувствуете при виде алкоголя в магазине?', options: [{label:'Ничего',score:0},{label:'Мелькнула мысль',score:18},{label:'Планирую вечеринку',score:40},{label:'Хочется купить',score:65},{label:'У меня есть запас',score:80}] },
@@ -143,7 +142,10 @@ function finishTest() {
   testUI.percentageDisplay.textContent = `${percentInt}%`;
   
   const profile = getProfile();
-  if (!isFunnyMode() && profile) {
+  
+  if (isSandboxMode()) {
+    customAlert('Песочница', '⚠️ Внимание: Тест пройден в режиме "Песочница". Этот результат никак не повлиял на ваш официальный статус и историю тестов.');
+  } else if (profile) {
     profile.status = statusKey;
     if (statusKey === 'drunk') {
       profile.timerUntil = Date.now() + 5 * 60 * 60 * 1000;
@@ -160,15 +162,11 @@ function finishTest() {
     saveAccounts();
     
     updateProfileUI();
-    
-    if (window.onHistoryUpdate) window.onHistoryUpdate();
-  } else if (profile) {
-    const history = getHistory();
-    history.push({ time: Date.now(), percent: percentInt, label: '🎭 ' + category, status: 'funny' });
-    if (history.length > 30) history.shift();
-    setHistory(history);
-    saveAccounts();
-    
     if (window.onHistoryUpdate) window.onHistoryUpdate();
   }
+}
+
+let customAlert = (title, message) => alert(message);
+export function setCustomAlert(alertFn) {
+  customAlert = alertFn;
 }

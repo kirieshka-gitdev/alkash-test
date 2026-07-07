@@ -22,7 +22,6 @@ let gameUI = {};
 export function initGame(elements) {
   gameUI = { ...gameUI, ...elements };
   
-  // Автопауза при сворачивании вкладки или закрытии страницы
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && gameState.started && !gameState.finished) {
       pauseMemoryGame();
@@ -33,6 +32,10 @@ export function initGame(elements) {
       pauseMemoryGame();
     }
   });
+}
+
+export function isGameRunning() {
+  return gameState.started && !gameState.finished;
 }
 
 export function pauseMemoryGame() {
@@ -176,9 +179,7 @@ export function startGame() {
       gameUI.gameStartBtn.innerHTML = '<i class="fas fa-redo"></i> Новая игра';
       
       if (isSandboxMode()) {
-        if (window.customAlert) {
-          window.customAlert('Песочница', '⚠️ Внимание: Время вышло в режиме "Песочница". Ваш реальный статус и история не изменились.');
-        }
+        customAlert('Песочница', '⚠️ Внимание: Время вышло в режиме "Песочница". Ваш реальный статус и история не изменились.');
       } else {
         const profile = getProfile();
         if (profile) {
@@ -238,9 +239,7 @@ function handleGameClick(idx) {
         gameUI.gameStartBtn.innerHTML = '<i class="fas fa-redo"></i> Новая игра';
         
         if (isSandboxMode()) {
-          if (window.customAlert) {
-            window.customAlert('Песочница', `🎉 Результат: ${time}с в режиме "Песочница". На ваш реальный статус и историю это никак не повлияло.`);
-          }
+          customAlert('Песочница', `🎉 Результат: ${time}с в режиме "Песочница". На ваш реальный статус и историю это никак не повлияло.`);
         } else {
           const profile = getProfile();
           if (profile) {
@@ -270,7 +269,12 @@ export function restoreGame() {
   if (localStorage.getItem('memoryGameState')) {
     const saved = JSON.parse(localStorage.getItem('memoryGameState'));
     if (saved.paused && saved.started) {
-      // Подготовлено к возобновлению
+      // Готово к продолжению
     }
   }
+}
+
+let customAlert = (title, message) => alert(message);
+export function setCustomAlert(alertFn) {
+  customAlert = alertFn;
 }
