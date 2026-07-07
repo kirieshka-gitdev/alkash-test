@@ -458,13 +458,13 @@ function checkAndRenderShareLink() {
     let html = '';
     
     if (data.type === 'test') {
-      html += `
-        <div style="text-align: center; margin-bottom: 20px;">
-          <p style="color:#a78bfa; font-size:0.8rem; font-weight:700; text-transform:uppercase; margin-bottom: 6px; letter-spacing: 0.05em;"><i class="fas fa-question-circle"></i> Модуль: АлкоТест (Вопросы)</p>
-          <div class="percentage-badge" style="font-size: 2rem; padding: 10px 30px; margin-bottom: 8px;">${data.percent}%</div>
-          <h3 style="color:#f0eeff; font-size: 1.3rem;">${data.name}</h3>
-          <p style="color:rgba(200,200,255,0.4); font-size:0.85rem;">Режим: ${data.sandbox ? '🍊 Песочница' : '🔒 Реальный тест'}</p>
-        </div>
+html += `
+  <div style="text-align: center; margin-bottom: 20px;">
+    <p style="color:#a78bfa; font-size:0.8rem; font-weight:700; text-transform:uppercase; margin-bottom: 6px; letter-spacing: 0.05em;"><i class="fas fa-question-circle"></i> Модуль: АлкоТест (Вопросы)</p>
+    <div class="percentage-badge" style="font-size: 1.5rem; padding: 10px 24px; margin-bottom: 8px;">Отклонение: ${data.percent}%</div>
+    <h3 style="color:#f0eeff; font-size: 1.3rem;">Игрок: ${data.name}</h3>
+    <p style="color:rgba(200,200,255,0.4); font-size:0.85rem;">Режим: ${data.sandbox ? '🍊 Песочница' : '🔒 Реальный тест'}</p>
+  </div>
         <div style="text-align: left; display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 6px;">
       `;
       
