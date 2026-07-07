@@ -1,8 +1,8 @@
 // test.js — вопросы и логика теста
 
 import { shuffleArray, formatDuration } from './utils.js';
-import { getProfile, setProfile, getHistory, setHistory, saveAccounts, isFunnyMode } from './auth.js';
-import { updateProfileUI } from './profile.js';
+import { getProfile, setProfile, getHistory, setHistory, saveAccounts } from './auth.js';
+import { updateProfileUI, isFunnyMode } from './profile.js';
 
 // Вопросы
 export const BASE_QUESTIONS = [
