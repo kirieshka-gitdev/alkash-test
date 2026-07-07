@@ -1,7 +1,10 @@
 // profile.js — управление профилем и UI
 
 import { getStatusLabel, getStatusClass, formatTime, formatDuration } from './utils.js';
-import { getProfile, setProfile, saveAccounts, getCurrentIndex, isSandboxMode, setSandboxMode } from './auth.js';
+import { getProfile, setProfile, saveAccounts, getCurrentIndex, isSandboxMode, setSandboxMode, isFunnyMode } from './auth.js';
+
+// Экспортируем обратно, чтобы не ломать старые импорты в сторонних файлах
+export { isFunnyMode };
 
 let profileUI = {
   panelName: null,

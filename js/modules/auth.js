@@ -271,3 +271,8 @@ export function setSandboxMode(val) {
   if (profile && profile.status === 'drunk') return;
   localStorage.setItem('sandboxMode', String(val));
 }
+
+// Экспорт-алиас для обратной совместимости импортов
+export function isFunnyMode() {
+  return isSandboxMode();
+}
