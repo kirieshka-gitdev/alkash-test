@@ -65,7 +65,7 @@ export function pauseMemoryGame() {
   
   gameUI.gameStartBtn.disabled = false;
   gameUI.gameStartBtn.innerHTML = '<i class="fas fa-play"></i> Продолжить игру';
-  gameUI.gameStatus.textContent = '⏸ Игра приостановлена. Нажмите "Продолжить"!';
+  gameUI.gameStatus.textContent = 'Игра приостановлена. Нажмите "Продолжить"!';
 }
 
 export function initGameSession() {
