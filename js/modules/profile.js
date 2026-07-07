@@ -1,7 +1,7 @@
 // profile.js — управление профилем и UI
 
 import { getStatusLabel, getStatusClass, formatTime, formatDuration } from './utils.js';
-import { getProfile, setProfile, saveAccounts, getCurrentIndex } from './auth.js';
+import { getProfile, setProfile, saveAccounts, getCurrentIndex, isSandboxMode, setSandboxMode } from './auth.js';
 
 let profileUI = {
   panelName: null,
@@ -26,6 +26,10 @@ export function initProfile(elements) {
   profileUI.panelDeleteBtn.addEventListener('click', handleDeleteAccount);
   profileUI.panelTokenBtn.addEventListener('click', handleToken);
   profileUI.panelAccountsBtn.addEventListener('click', handleShowAccounts);
+  
+  if (profileUI.funnyBadge) {
+    profileUI.funnyBadge.addEventListener('click', toggleSandbox);
+  }
 }
 
 export function updateProfileUI() {
@@ -63,21 +67,35 @@ export function updateProfileUI() {
     }
   }
   
-  const isFunny = isFunnyMode();
-  profileUI.funnyBadge.textContent = isFunny ? '🎭 шуточный режим' : '🔒 реальный тест';
-  profileUI.funnyBadge.style.color = isFunny ? '#fbbf24' : 'rgba(200,200,255,0.2)';
+  // Обновление стилей и текста песочницы
+  const isSand = isSandboxMode();
+  const appContainer = document.querySelector('.app-container');
+  
+  if (isSand) {
+    appContainer.classList.add('sandbox-active');
+    profileUI.funnyBadge.textContent = profile.status === 'drunk' ? '🍊 Песочница (Алкаш)' : '🍊 Песочница';
+    profileUI.funnyBadge.className = 'funny-badge sandbox';
+  } else {
+    appContainer.classList.remove('sandbox-active');
+    profileUI.funnyBadge.textContent = '🔒 Реальный режим';
+    profileUI.funnyBadge.className = 'funny-badge';
+  }
   
   const canCaptcha = st === 'drunk' && profile.timerUntil && profile.timerUntil > now;
   profileUI.panelCaptchaBtn.disabled = !canCaptcha;
   profileUI.panelCaptchaBtn.title = canCaptcha ? '' : 'Капча доступна только в состоянии "Алкаш"';
 }
 
-export function isFunnyMode() {
+function toggleSandbox() {
   const profile = getProfile();
-  if (!profile) return true;
-  const now = Date.now();
-  if (profile.timerUntil && profile.timerUntil > now) return true;
-  return false;
+  if (!profile) return;
+  if (profile.status === 'drunk') {
+    customAlert('Песочница', 'В статусе "Алкаш" режим песочницы принудительно активен и не может быть отключен.');
+    return;
+  }
+  const current = isSandboxMode();
+  setSandboxMode(!current);
+  updateProfileUI();
 }
 
 async function handleEditName() {
@@ -97,20 +115,22 @@ async function handleEditName() {
 async function handleDeleteAccount() {
   const profile = getProfile();
   if (!profile) return;
-  if (profile.status !== 'sober' && profile.status !== 'almost') {
-    await customAlert('Доступ запрещён', '❌ Удалить аккаунт можно только в состоянии "Трезвый" или "Почти трезвый". Пройдите капчу!');
+  if (profile.status === 'drunk') {
+    await customAlert('Доступ запрещён', '❌ Нельзя удалить аккаунт в состоянии "Алкаш". Пройдите капчу!');
     return;
   }
-  const confirm = await customAlert('Удаление профиля', `Удалить профиль "${profile.name}"?`);
-  if (confirm) {
-    // Логика удаления будет в app.js
+  const confirmName = await customAlert('Удаление профиля', `Для подтверждения удаления введите имя аккаунта: "${profile.name}"`, 'Имя аккаунта');
+  if (confirmName === profile.name) {
     if (window.onDeleteAccount) window.onDeleteAccount();
+  } else if (confirmName !== null) {
+    await customAlert('Ошибка', 'Введенное имя не совпадает. Удаление отменено.');
   }
 }
 
 async function handleToken() {
   const profile = getProfile();
   if (!profile) return;
+  const { generateToken } = await import('./auth.js');
   const token = generateToken(profile);
   await customAlert('Ваш токен', 
     'Скопируйте токен для входа в любом браузере:\n\n' + token + 
@@ -119,11 +139,9 @@ async function handleToken() {
 }
 
 function handleShowAccounts() {
-  // Будет переопределено в app.js
   if (window.onShowAccounts) window.onShowAccounts();
 }
 
-// Временная заглушка для customAlert
 let customAlert = (title, message) => alert(message);
 export function setCustomAlert(alertFn) {
   customAlert = alertFn;

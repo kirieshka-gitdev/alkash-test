@@ -1,14 +1,13 @@
 // app.js — главный файл, инициализация всех модулей
 
 import { initAuth, loadAccount, renderAccountList, loadAccounts, saveAccounts, getProfile, getHistory, setProfile, setHistory, getAllAccounts, getCurrentIndex } from './modules/auth.js';
-import { initProfile, updateProfileUI, isFunnyMode } from './modules/profile.js';
+import { initProfile, updateProfileUI } from './modules/profile.js';
 import { initTest, startNewGame } from './modules/test.js';
-import { initGame, initGameSession, restoreGame, startGame as startGameSession } from './modules/game.js';
+import { initGame, initGameSession, restoreGame, startGame as startGameSession, pauseMemoryGame } from './modules/game.js';
 import { initCaptcha, startCaptcha, cancelCaptcha } from './modules/captcha.js';
 import { initHistory, renderHistory, renderChart } from './modules/history.js';
 import { formatDuration } from './modules/utils.js';
 
-// DOM элементы
 const dom = {
   // Левая панель
   leftPanel: document.getElementById('leftPanel'),
@@ -108,6 +107,7 @@ function customAlert(title, message, inputPlaceholder = null, copyText = null) {
     
     if (copyText) {
       dom.alertCopyBtn.classList.remove('hidden');
+      dom.alertCancelBtn.classList.add('hidden'); // Убираем отмену для копирования токена
     } else {
       dom.alertCopyBtn.classList.add('hidden');
     }
@@ -116,9 +116,13 @@ function customAlert(title, message, inputPlaceholder = null, copyText = null) {
       dom.alertInputContainer.classList.remove('hidden');
       dom.alertInput.value = '';
       dom.alertInput.placeholder = inputPlaceholder;
+      dom.alertCancelBtn.classList.remove('hidden'); // Показываем Отмену только если нужен ввод текста
       setTimeout(() => dom.alertInput.focus(), 100);
     } else {
       dom.alertInputContainer.classList.add('hidden');
+      if (!copyText) {
+        dom.alertCancelBtn.classList.add('hidden'); // Убираем отмену в информационных окнах
+      }
     }
     
     dom.customAlert.classList.add('show');
@@ -170,7 +174,7 @@ dom.alertInput.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') dom.alertCancelBtn.click();
 });
 
-if (dom.notifCloseBtn && dom.systemNotif) {
+if (dom.notifCloseBtn) {
   dom.notifCloseBtn.addEventListener('click', () => {
     dom.systemNotif.classList.remove('show');
   });
@@ -179,12 +183,13 @@ if (dom.notifCloseBtn && dom.systemNotif) {
 // ----- ИНИЦИАЛИЗАЦИЯ МОДУЛЕЙ -----
 
 // Передаём customAlert во все модули
-const alertModules = [initAuth, initProfile, initCaptcha];
+const alertModules = [initAuth, initProfile, initCaptcha, initTest];
 alertModules.forEach(fn => {
   if (fn.setCustomAlert) fn.setCustomAlert(customAlert);
 });
 
-// Инициализируем модули
+window.customAlert = customAlert; // Делаем глобально доступным для вызовов завершения игр
+
 initAuth({
   accountList: dom.accountList,
   registerScreen: dom.registerScreen,
@@ -255,7 +260,7 @@ initHistory({
 // ----- КОЛБЭКИ ДЛЯ МЕЖМОДУЛЬНОГО ВЗАИМОДЕЙСТВИЯ -----
 
 window.onAccountChange = function() {
-  // Загружаем аккаунт
+  pauseMemoryGame();
   loadAccounts();
   updateProfileUI();
   renderAccountList(handleAccountClick);
@@ -271,6 +276,7 @@ window.onHistoryUpdate = function() {
 };
 
 window.onDeleteAccount = function() {
+  pauseMemoryGame();
   const allAccounts = getAllAccounts();
   const currentIndex = getCurrentIndex();
   
@@ -290,6 +296,7 @@ window.onDeleteAccount = function() {
     localStorage.removeItem('alcoholProfile');
     localStorage.removeItem('alcoholTestHistory');
     localStorage.removeItem('alcoholCurrentAccount');
+    localStorage.removeItem('memoryGameState');
     dom.registerScreen.classList.add('show');
     dom.mainApp.classList.remove('show');
     dom.leftPanel.style.display = 'none';
@@ -299,6 +306,7 @@ window.onDeleteAccount = function() {
 };
 
 window.onShowAccounts = function() {
+  pauseMemoryGame();
   dom.registerScreen.classList.add('show');
   dom.mainApp.classList.remove('show');
   dom.leftPanel.style.display = 'none';
@@ -306,6 +314,7 @@ window.onShowAccounts = function() {
 };
 
 function handleAccountClick(idx) {
+  pauseMemoryGame();
   if (idx !== getCurrentIndex()) {
     loadAccount(idx);
     dom.registerScreen.classList.remove('show');
@@ -317,6 +326,11 @@ function handleAccountClick(idx) {
     initGameSession();
     renderHistory();
     renderChart();
+  } else {
+    // Если аккаунт один или нажат текущий — просто возвращаем на главную
+    dom.registerScreen.classList.remove('show');
+    dom.mainApp.classList.add('show');
+    dom.leftPanel.style.display = 'block';
   }
 }
 
@@ -324,7 +338,6 @@ function handleAccountClick(idx) {
 
 dom.resetBtn.addEventListener('click', startNewGame);
 
-// Исправленный обработчик для игры с проверкой
 if (dom.gameStartBtn) {
   dom.gameStartBtn.addEventListener('click', () => {
     const profile = getProfile();
@@ -332,11 +345,8 @@ if (dom.gameStartBtn) {
       customAlert('Ошибка', 'Сначала создайте профиль');
       return;
     }
-    initGameSession();
-    setTimeout(startGameSession, 100);
+    startGameSession();
   });
-} else {
-  console.warn('gameStartBtn не найден в DOM');
 }
 
 dom.captchaCancelBtn.addEventListener('click', cancelCaptcha);
@@ -354,14 +364,13 @@ if (dom.captchaBtn) {
     }
     startCaptcha();
   });
-} else {
-  console.warn('captchaBtn не найден в DOM');
 }
 
 // ----- ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ -----
 
 function setMode(mode) {
   if (mode === 'standard') {
+    pauseMemoryGame(); // Ставим на паузу игру, если ушли на тест
     dom.standardMode.classList.remove('hidden');
     dom.modularMode.classList.add('hidden');
     dom.modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === 'standard'));
@@ -408,7 +417,6 @@ function initApp() {
     renderHistory();
     renderChart();
     
-    // Таймер обновления
     setInterval(() => {
       updateProfileUI();
       const profileCheck = getProfile();
@@ -432,5 +440,4 @@ function initApp() {
   }
 }
 
-// Запускаем приложение
 initApp();

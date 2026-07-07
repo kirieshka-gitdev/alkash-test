@@ -547,3 +547,26 @@ h1 { font-size: 1.5rem; font-weight: 900; background: linear-gradient(135deg, #e
   .features-grid { grid-template-columns: 1fr; }
   .custom-alert-box { max-width: 320px; padding: 16px 14px 20px; }
 }
+
+/* --- СТИЛИ ДЛЯ РЕЖИМА "ПЕСОЧНИЦА" --- */
+.sandbox-active .question-area,
+.sandbox-active .game-area,
+.sandbox-active .game-card.flipped {
+  border-color: #fb923c !important;
+  box-shadow: 0 0 20px rgba(251, 146, 60, 0.15) !important;
+}
+
+.sandbox-active h1,
+.sandbox-active h2 {
+  background: linear-gradient(135deg, #ffedd5, #fb923c, #ea580c) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+.funny-badge.sandbox {
+  background: rgba(251, 146, 60, 0.15) !important;
+  border-color: #fb923c !important;
+  color: #fb923c !important;
+  cursor: pointer;
+}

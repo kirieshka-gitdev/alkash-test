@@ -2,13 +2,11 @@
 
 import { formatTime, getStatusLabel } from './utils.js';
 
-// Глобальные переменные (будут инициализированы в app.js)
 let allAccounts = [];
 let currentAccountIndex = 0;
 let profile = null;
 let history = [];
 
-// DOM элементы
 let accountList, registerScreen, mainApp, leftPanel, nameInput, tokenInput;
 let registerBtn, loginTokenBtn;
 
@@ -193,7 +191,6 @@ async function handleRegister() {
   mainApp.classList.add('show');
   leftPanel.style.display = 'block';
   
-  // Вызываем callback для обновления UI
   if (window.onAccountChange) window.onAccountChange();
 }
 
@@ -257,16 +254,20 @@ function canCreateNewAccount() {
   return true;
 }
 
-// Временная заглушка для customAlert (будет переопределена в app.js)
 let customAlert = (title, message) => alert(message);
 export function setCustomAlert(alertFn) {
   customAlert = alertFn;
 }
 
-export function isFunnyMode() {
+export function isSandboxMode() {
   const profile = getProfile();
   if (!profile) return true;
-  const now = Date.now();
-  if (profile.timerUntil && profile.timerUntil > now) return true;
-  return false;
+  if (profile.status === 'drunk') return true;
+  return localStorage.getItem('sandboxMode') === 'true';
+}
+
+export function setSandboxMode(val) {
+  const profile = getProfile();
+  if (profile && profile.status === 'drunk') return;
+  localStorage.setItem('sandboxMode', String(val));
 }

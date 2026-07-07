@@ -1,7 +1,7 @@
 // game.js — модульная игра
 
 import { shuffleArray, formatDuration } from './utils.js';
-import { getProfile, setProfile, getHistory, setHistory, saveAccounts, isFunnyMode } from './auth.js';
+import { getProfile, setProfile, getHistory, setHistory, saveAccounts, isSandboxMode } from './auth.js';
 import { updateProfileUI } from './profile.js';
 
 const GAME_EMOJIS = ['🍺','🍷','🥃','🍸','🧉','🍹','🍾','🥂'];
@@ -14,18 +14,78 @@ let gameState = {
   seconds: 0,
   started: false,
   finished: false,
-  blocked: false,
-  timer: null,
-  startTime: 0
+  timer: null
 };
 
 let gameUI = {};
 
 export function initGame(elements) {
   gameUI = { ...gameUI, ...elements };
+  
+  // Автопауза при сворачивании вкладки или закрытии страницы
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && gameState.started && !gameState.finished) {
+      pauseMemoryGame();
+    }
+  });
+  window.addEventListener('beforeunload', () => {
+    if (gameState.started && !gameState.finished) {
+      pauseMemoryGame();
+    }
+  });
+}
+
+export function pauseMemoryGame() {
+  if (!gameState.started || gameState.finished) return;
+  
+  if (gameState.timer) {
+    clearInterval(gameState.timer);
+    gameState.timer = null;
+  }
+  
+  const saveState = {
+    cards: gameState.cards,
+    flipped: gameState.flipped,
+    matched: gameState.matched,
+    seconds: gameState.seconds,
+    started: true,
+    finished: false,
+    paused: true
+  };
+  localStorage.setItem('memoryGameState', JSON.stringify(saveState));
+  
+  gameState.started = false;
+  
+  gameUI.gameStartBtn.disabled = false;
+  gameUI.gameStartBtn.innerHTML = '<i class="fas fa-play"></i> Продолжить игру';
+  gameUI.gameStatus.textContent = '⏸ Игра приостановлена. Нажмите "Продолжить"!';
 }
 
 export function initGameSession() {
+  const saved = localStorage.getItem('memoryGameState');
+  if (saved) {
+    try {
+      const state = JSON.parse(saved);
+      if (state.paused) {
+        gameState.cards = state.cards;
+        gameState.flipped = state.flipped;
+        gameState.matched = state.matched;
+        gameState.seconds = state.seconds;
+        gameState.started = false;
+        gameState.finished = false;
+        
+        gameUI.gameStatus.textContent = '⏸ Игра приостановлена. Нажмите "Продолжить"!';
+        gameUI.gameTimerDisplay.textContent = `⏱ ${formatDuration(gameState.seconds)}`;
+        gameUI.gameStartBtn.disabled = false;
+        gameUI.gameStartBtn.innerHTML = '<i class="fas fa-play"></i> Продолжить игру';
+        renderGame();
+        return;
+      }
+    } catch (e) {
+      localStorage.removeItem('memoryGameState');
+    }
+  }
+  
   const pairs = shuffleArray([...GAME_EMOJIS, ...GAME_EMOJIS]);
   gameState.cards = pairs.map((em, idx) => ({ id: idx, emoji: em, matched: false, flipped: false }));
   gameState.flipped = [];
@@ -34,8 +94,6 @@ export function initGameSession() {
   gameState.seconds = 0;
   gameState.started = false;
   gameState.finished = false;
-  gameState.blocked = false;
-  gameState.startTime = 0;
   
   if (gameState.timer) { clearInterval(gameState.timer); gameState.timer = null; }
   
@@ -44,7 +102,6 @@ export function initGameSession() {
   gameUI.gameStartBtn.disabled = false;
   gameUI.gameStartBtn.innerHTML = '<i class="fas fa-play"></i> Начать игру';
   renderGame();
-  localStorage.removeItem('gameInProgress');
 }
 
 function renderGame() {
@@ -62,72 +119,90 @@ function renderGame() {
 }
 
 export function startGame() {
-  if (gameState.started || gameState.finished) return;
+  if (gameState.finished) return;
   
-  gameState.started = true;
-  gameState.seconds = 0;
-  gameState.startTime = Date.now();
+  const saved = localStorage.getItem('memoryGameState');
+  if (saved) {
+    try {
+      const state = JSON.parse(saved);
+      if (state.paused) {
+        gameState.cards = state.cards;
+        gameState.flipped = state.flipped;
+        gameState.matched = state.matched;
+        gameState.seconds = state.seconds;
+        gameState.started = true;
+        gameState.finished = false;
+        localStorage.removeItem('memoryGameState');
+      }
+    } catch (e) {
+      localStorage.removeItem('memoryGameState');
+    }
+  }
+  
+  if (!gameState.started) {
+    gameState.started = true;
+    gameState.seconds = 0;
+  }
+  
   gameUI.gameStartBtn.disabled = true;
   gameUI.gameStartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Игра идёт...';
-  
-  const saveState = {
-    cards: gameState.cards.map(c => ({ ...c })),
-    seconds: 0,
-    started: true,
-    startTime: gameState.startTime
-  };
-  localStorage.setItem('gameInProgress', JSON.stringify(saveState));
+  gameUI.gameStatus.textContent = 'Найди пары! Трезвый ум — быстрый ум.';
+  renderGame();
   
   if (gameState.timer) clearInterval(gameState.timer);
   gameState.timer = setInterval(() => {
     gameState.seconds++;
     gameUI.gameTimerDisplay.textContent = `⏱ ${formatDuration(gameState.seconds)}`;
     
-    if (gameState.seconds >= 45 && !gameState.blocked) {
-      gameState.blocked = true;
-      gameUI.gameStatus.textContent = '⛔ Игра заблокирована! Доиграйте до конца.';
-      gameUI.gameStartBtn.disabled = true;
-      const state = JSON.parse(localStorage.getItem('gameInProgress') || '{}');
-      state.blocked = true;
-      localStorage.setItem('gameInProgress', JSON.stringify(state));
-    }
+    const activeState = {
+      cards: gameState.cards,
+      flipped: gameState.flipped,
+      matched: gameState.matched,
+      seconds: gameState.seconds,
+      started: true,
+      finished: false,
+      paused: true
+    };
+    localStorage.setItem('memoryGameState', JSON.stringify(activeState));
     
-    if (gameState.seconds >= 60) {
+    if (gameState.seconds >= 45) {
       clearInterval(gameState.timer);
       gameState.timer = null;
       gameState.finished = true;
       gameState.started = false;
-      localStorage.removeItem('gameInProgress');
+      localStorage.removeItem('memoryGameState');
       gameUI.gameStatus.textContent = '⏰ Время вышло! Вы не успели. Статус: АЛКАШ!';
       gameUI.gameStartBtn.disabled = false;
       gameUI.gameStartBtn.innerHTML = '<i class="fas fa-redo"></i> Новая игра';
       
-      const profile = getProfile();
-      if (profile && !isFunnyMode()) {
-        profile.status = 'drunk';
-        profile.timerUntil = Date.now() + 5 * 60 * 60 * 1000;
-        setProfile(profile);
-        saveAccounts();
-        
-        const history = getHistory();
-        history.push({ time: Date.now(), percent: 85, label: '💜 Провал в игре → Алкаш!', status: 'drunk' });
-        if (history.length > 30) history.shift();
-        setHistory(history);
-        saveAccounts();
-        
-        updateProfileUI();
-        if (window.onHistoryUpdate) window.onHistoryUpdate();
+      if (isSandboxMode()) {
+        if (window.customAlert) {
+          window.customAlert('Песочница', '⚠️ Внимание: Время вышло в режиме "Песочница". Ваш реальный статус и история не изменились.');
+        }
+      } else {
+        const profile = getProfile();
+        if (profile) {
+          profile.status = 'drunk';
+          profile.timerUntil = Date.now() + 5 * 60 * 60 * 1000;
+          setProfile(profile);
+          saveAccounts();
+          
+          const history = getHistory();
+          history.push({ time: Date.now(), percent: 85, label: '💜 Провал в игре → Алкаш!', status: 'drunk' });
+          if (history.length > 30) history.shift();
+          setHistory(history);
+          saveAccounts();
+          
+          updateProfileUI();
+          if (window.onHistoryUpdate) window.onHistoryUpdate();
+        }
       }
     }
   }, 1000);
 }
 
 function handleGameClick(idx) {
-  if (gameState.locked || gameState.finished || !gameState.started) return;
-  if (gameState.blocked) {
-    gameUI.gameStatus.textContent = '⛔ Игра заблокирована! Доиграйте до конца.';
-    return;
-  }
+  if (gameState.locked || gameState.finished || (!gameState.started && !localStorage.getItem('memoryGameState'))) return;
   
   const card = gameState.cards[idx];
   if (card.matched || card.flipped) return;
@@ -156,20 +231,26 @@ function handleGameClick(idx) {
         gameState.timer = null;
         gameState.finished = true;
         gameState.started = false;
-        localStorage.removeItem('gameInProgress');
+        localStorage.removeItem('memoryGameState');
         const time = gameState.seconds;
         gameUI.gameStatus.textContent = `🎉 Поздравляем! Вы прошли за ${time} сек. Вы трезвы!`;
         gameUI.gameStartBtn.disabled = false;
         gameUI.gameStartBtn.innerHTML = '<i class="fas fa-redo"></i> Новая игра';
         
-        const profile = getProfile();
-        if (profile && !isFunnyMode()) {
-          const history = getHistory();
-          history.push({ time: Date.now(), percent: 0, label: `🏆 Модуль: ${time}с`, status: 'sober' });
-          if (history.length > 30) history.shift();
-          setHistory(history);
-          saveAccounts();
-          if (window.onHistoryUpdate) window.onHistoryUpdate();
+        if (isSandboxMode()) {
+          if (window.customAlert) {
+            window.customAlert('Песочница', `🎉 Результат: ${time}с в режиме "Песочница". На ваш реальный статус и историю это никак не повлияло.`);
+          }
+        } else {
+          const profile = getProfile();
+          if (profile) {
+            const history = getHistory();
+            history.push({ time: Date.now(), percent: 0, label: `🏆 Модуль: ${time}с`, status: 'sober' });
+            if (history.length > 30) history.shift();
+            setHistory(history);
+            saveAccounts();
+            if (window.onHistoryUpdate) window.onHistoryUpdate();
+          }
         }
       }
     } else {
@@ -185,75 +266,11 @@ function handleGameClick(idx) {
 }
 
 export function restoreGame() {
-  const saved = localStorage.getItem('gameInProgress');
-  if (!saved) return;
-  
-  try {
-    const state = JSON.parse(saved);
-    if (state.started && !state.finished) {
-      gameState.cards = state.cards;
-      gameState.started = true;
-      gameState.startTime = state.startTime;
-      gameState.seconds = Math.floor((Date.now() - state.startTime) / 1000);
-      
-      if (gameState.seconds > 60) {
-        localStorage.removeItem('gameInProgress');
-        return;
-      }
-      
-      if (state.blocked) {
-        gameState.blocked = true;
-        gameUI.gameStatus.textContent = '⛔ Игра заблокирована! Доиграйте до конца.';
-      }
-      
-      gameUI.gameStartBtn.disabled = true;
-      gameUI.gameStartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Игра идёт...';
-      gameUI.gameTimerDisplay.textContent = `⏱ ${formatDuration(gameState.seconds)}`;
-      renderGame();
-      
-      if (gameState.timer) clearInterval(gameState.timer);
-      gameState.timer = setInterval(() => {
-        gameState.seconds++;
-        gameUI.gameTimerDisplay.textContent = `⏱ ${formatDuration(gameState.seconds)}`;
-        
-        if (gameState.seconds >= 45 && !gameState.blocked) {
-          gameState.blocked = true;
-          gameUI.gameStatus.textContent = '⛔ Игра заблокирована! Доиграйте до конца.';
-          const s = JSON.parse(localStorage.getItem('gameInProgress') || '{}');
-          s.blocked = true;
-          localStorage.setItem('gameInProgress', JSON.stringify(s));
-        }
-        
-        if (gameState.seconds >= 60) {
-          clearInterval(gameState.timer);
-          gameState.timer = null;
-          gameState.finished = true;
-          gameState.started = false;
-          localStorage.removeItem('gameInProgress');
-          gameUI.gameStatus.textContent = '⏰ Время вышло! Вы не успели. Статус: АЛКАШ!';
-          gameUI.gameStartBtn.disabled = false;
-          gameUI.gameStartBtn.innerHTML = '<i class="fas fa-redo"></i> Новая игра';
-          
-          const profile = getProfile();
-          if (profile && !isFunnyMode()) {
-            profile.status = 'drunk';
-            profile.timerUntil = Date.now() + 5 * 60 * 60 * 1000;
-            setProfile(profile);
-            saveAccounts();
-            
-            const history = getHistory();
-            history.push({ time: Date.now(), percent: 85, label: '💜 Провал в игре → Алкаш!', status: 'drunk' });
-            if (history.length > 30) history.shift();
-            setHistory(history);
-            saveAccounts();
-            
-            updateProfileUI();
-            if (window.onHistoryUpdate) window.onHistoryUpdate();
-          }
-        }
-      }, 1000);
+  initGameSession();
+  if (localStorage.getItem('memoryGameState')) {
+    const saved = JSON.parse(localStorage.getItem('memoryGameState'));
+    if (saved.paused && saved.started) {
+      // Подготовлено к возобновлению
     }
-  } catch(e) {
-    localStorage.removeItem('gameInProgress');
   }
 }
