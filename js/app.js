@@ -320,32 +320,43 @@ function handleAccountClick(idx) {
 
 // ----- ОБРАБОТЧИКИ КНОПОК -----
 
+// ----- ОБРАБОТЧИКИ КНОПОК -----
+
 dom.resetBtn.addEventListener('click', startNewGame);
 
-dom.gameStartBtn.addEventListener('click', () => {
-  const profile = getProfile();
-  if (!profile) {
-    customAlert('Ошибка', 'Сначала создайте профиль');
-    return;
-  }
-  initGameSession();
-  setTimeout(startGameSession, 100);
-});
+// Исправленный обработчик для игры с проверкой
+if (dom.gameStartBtn) {
+  dom.gameStartBtn.addEventListener('click', () => {
+    const profile = getProfile();
+    if (!profile) {
+      customAlert('Ошибка', 'Сначала создайте профиль');
+      return;
+    }
+    initGameSession();
+    setTimeout(startGameSession, 100);
+  });
+} else {
+  console.warn('gameStartBtn не найден в DOM');
+}
 
 dom.captchaCancelBtn.addEventListener('click', cancelCaptcha);
 
-dom.captchaBtn.addEventListener('click', () => {
-  const profile = getProfile();
-  if (!profile) {
-    customAlert('Ошибка', 'Сначала создайте профиль');
-    return;
-  }
-  if (profile.status !== 'drunk') {
-    customAlert('Доступ запрещён', 'Капча доступна только в состоянии "Алкаш"');
-    return;
-  }
-  startCaptcha();
-});
+if (dom.captchaBtn) {
+  dom.captchaBtn.addEventListener('click', () => {
+    const profile = getProfile();
+    if (!profile) {
+      customAlert('Ошибка', 'Сначала создайте профиль');
+      return;
+    }
+    if (profile.status !== 'drunk') {
+      customAlert('Доступ запрещён', 'Капча доступна только в состоянии "Алкаш"');
+      return;
+    }
+    startCaptcha();
+  });
+} else {
+  console.warn('captchaBtn не найден в DOM');
+}
 
 // ----- ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ -----
 
