@@ -262,3 +262,11 @@ let customAlert = (title, message) => alert(message);
 export function setCustomAlert(alertFn) {
   customAlert = alertFn;
 }
+
+export function isFunnyMode() {
+  const profile = getProfile();
+  if (!profile) return true;
+  const now = Date.now();
+  if (profile.timerUntil && profile.timerUntil > now) return true;
+  return false;
+}
